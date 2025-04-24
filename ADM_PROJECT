@@ -1,0 +1,86 @@
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestClassifier
+import pandas as pd
+
+# Existing celebrity scores and movie data
+celebrity_scores = {
+    'Hero': {'ram charan': 9, 'nani': 7, 'vijay': 8, 'prabhas': 10, 'allu arjun': 9},
+    'Heroine': {'samantha': 9, 'rashmika': 8, 'kajal': 7},
+    'Comedian': {'brahmanandam': 9, 'vennela kishore': 8, 'ali': 7},
+    'Villain': {'jagapathi babu': 9, 'prakash raj': 8, 'sonu sood': 7},
+    'Producer': {'dil raju': 9, 'suresh babu': 8, 'allu aravind': 9},
+    'Director': {'rajamouli': 10, 'trivikram': 9, 'sukumar': 9},
+    'StoryWriter': {'vijayendra prasad': 10, 'koratala siva': 9, 'bvs ravi': 8}
+}
+
+data = [
+    ['Ram Charan', 'Samantha', 'Brahmanandam', 'Jagapathi Babu', 'Dil Raju', 'Rajamouli', 'Vijayendra Prasad', 1],
+    ['Nani', 'Rashmika', 'Ali', 'Prakash Raj', 'Suresh Babu', 'Trivikram', 'Koratala Siva', 0],
+    ['Vijay', 'Kajal', 'Vennela Kishore', 'Sonu Sood', 'Allu Aravind', 'Sukumar', 'BVS Ravi', 1],
+    ['Prabhas', 'Samantha', 'Brahmanandam', 'Prakash Raj', 'Dil Raju', 'Rajamouli', 'Vijayendra Prasad', 1],
+    ['Allu Arjun', 'Rashmika', 'Vennela Kishore', 'Sonu Sood', 'Allu Aravind', 'Sukumar', 'Koratala Siva', 1],
+    ['Prabhas', 'None', 'None', 'None', 'Dil Raju', 'Rajamouli', 'Vijayendra Prasad', 1]
+]
+
+columns = ['Hero', 'Heroine', 'Comedian', 'Villain', 'Producer', 'Director', 'StoryWriter', 'Success']
+df = pd.DataFrame(data, columns=columns)
+
+# Convert celebrity names to scores
+for col in columns[:-1]:  # Skip Success
+    df[col] = df[col].apply(lambda x: celebrity_scores[col].get(x.lower(), 0))
+
+# Train model
+X = df.drop('Success', axis=1)
+y = df['Success']
+
+model = RandomForestClassifier(class_weight='balanced', random_state=42)
+
+# Perform cross-validation
+cv_scores = cross_val_score(model, X, y, cv=5)
+
+# Output the cross-validation results
+print(f"Cross-Validation Scores: {cv_scores}")
+print(f"Mean CV Score: {cv_scores.mean()}")
+
+# Fit the model with the whole data
+model.fit(X, y)
+
+# Function for user input and prediction
+def get_input(field_name):
+    print(f"\nAvailable {field_name}s: {', '.join(celebrity_scores[field_name].keys())}")
+    print(f"(Type 'None' if no {field_name.lower()} in the movie)")
+    value = input(f"Enter {field_name}: ").strip().lower()
+    while value not in celebrity_scores[field_name] and value != "none":
+        print("❌ Invalid input. Please choose from the list or type 'None'.")
+        value = input(f"Enter {field_name} again: ").strip().lower()
+    return celebrity_scores[field_name].get(value, 0)
+
+# Prediction part without budget
+hero = get_input('Hero')
+heroine = get_input('Heroine')
+comedian = get_input('Comedian')
+villain = get_input('Villain')
+producer = get_input('Producer')
+director = get_input('Director')
+story_writer = get_input('StoryWriter')
+
+user_data = pd.DataFrame([{
+    'Hero': hero,
+    'Heroine': heroine,
+    'Comedian': comedian,
+    'Villain': villain,
+    'Producer': producer,
+    'Director': director,
+    'StoryWriter': story_writer
+}])
+
+prediction = model.predict(user_data)[0]
+probs = model.predict_proba(user_data)[0]
+
+if len(probs) > 1:
+    confidence = probs[prediction] * 100
+else:
+    confidence = probs[0] * 100
+
+print("\n✅ Predicted Result: ", "🎉 Hit!" if prediction == 1 else "😞 Flop.")
+print(f"🔍 Confidence: {confidence:.2f}%")
